@@ -1,0 +1,44 @@
+name: Clear Redirect File
+on:
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      commit_message:
+        description: 'Commit message'
+        required: true
+        default: 'chore: clear redirect.js file'
+        type: string
+
+permissions:
+  contents: write  # 需要写权限
+
+jobs:
+  clear-file:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # 重要：不创建新分支，直接检出当前默认分支
+          ref: ${{ github.ref }}
+          
+      - name: Clear redirect.js file
+        run: |
+          # 清空文件但不删除
+          echo '' > public/redirect.js
+          
+      - name: Configure Git
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+      - name: Commit and push changes
+        run: |
+          # 检查是否有变化
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git add public/redirect.js
+          git commit -m "${{ inputs.commit_message }}"
+          git push origin ${{ github.ref }}
