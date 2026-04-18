@@ -55,4 +55,4 @@ jobs:
           files: |
             dist/*
             !*.map
-          generate_release_notes: true  # 这个支持！
+          generate_release_notes: true  
