@@ -1,0 +1,76 @@
+name: Build Telegram Web
+on:
+  workflow_dispatch:
+    inputs:
+      telegram_api_id:
+        description: 'TELEGRAM_API_ID'
+        required: true
+        type: string
+      telegram_api_hash:
+        description: 'TELEGRAM_API_HASH'
+        required: true
+        type: string
+      base_url:
+        description: 'BASE_URL'
+        required: true
+        default: 'https://your-domain.com'
+        type: string
+      release_tag:
+        description: 'Release tag'
+        required: false
+        default: 'v1.0.0'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Create environment config
+        run: |
+          # 创建 .env 文件
+          echo "TELEGRAM_API_ID=${{ inputs.telegram_api_id }}" > .env
+          echo "TELEGRAM_API_HASH=${{ inputs.telegram_api_hash }}" >> .env
+          echo "BASE_URL=${{ inputs.base_url }}" >> .env
+          
+          # 创建 app-env.js - 使用多个 echo
+          echo 'window.telegramConfig = {' > public/app-env.js
+          echo "  apiId: '${{ inputs.telegram_api_id }}'," >> public/app-env.js
+          echo "  apiHash: '${{ inputs.telegram_api_hash }}'," >> public/app-env.js
+          echo "  baseUrl: '${{ inputs.base_url }}'," >> public/app-env.js
+          echo "  version: '${{ inputs.release_tag }}'" >> public/app-env.js
+          echo '};' >> public/app-env.js
+          
+      - name: Run build
+        run: npm run build:production
+          
+      - name: Check build output
+        run: |
+          echo "📦 构建输出:"
+          ls -la dist/ 2>/dev/null || ls -la build/ 2>/dev/null || echo "无输出目录"
+          
+      - name: Create Release
+        if: ${{ inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: ${{ inputs.release_tag }}
+          body: "Telegram Web build for ${{ inputs.base_url }}"
+          files: dist/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
