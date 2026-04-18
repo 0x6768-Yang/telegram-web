@@ -1,140 +1,43 @@
-name: Update Domain Configurations
+name: Quick Domain Replace
 on:
   workflow_dispatch:
     inputs:
-      custom_domain:
-        description: 'Custom domain (e.g., your-domain.com)'
+      domain:
+        description: 'Your domain'
         required: true
-        default: 'your-domain.com'
-        type: string
-      pr_title:
-        description: 'Pull Request title'
-        required: true
-        default: 'chore: update domain configurations'
-        type: string
-      target_branch:
-        description: 'Target branch for PR'
-        required: true
-        default: 'master'
         type: string
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  update-domains:
+  replace:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.target_branch }}
-
-      - name: Setup tools
-        run: |
-          # 确保 sed 可用
-          command -v sed
-          echo "Tools ready"
-
-      - name: 1. Update src/limits.ts - Add to whitelist
-        run: |
-          DOMAIN="${{ inputs.custom_domain }}"
-          FILE="src/limits.ts"
-          
-          if [ ! -f "$FILE" ]; then
-            echo "Error: File $FILE does not exist"
-            exit 1
-          fi
-          
-          echo "Updating whitelistedDomains in $FILE..."
-          
-          # 备份文件
-          cp "$FILE" "${FILE}.backup"
-          
-          # 简化方法：直接在数组末尾前添加新域名
-          # 使用更简单的 sed 命令
-          if grep -q "whitelistedDomains: \[" "$FILE"; then
-            # 找到 whitelistedDomains 数组的结束位置
-            LINE_NUM=$(grep -n "whitelistedDomains: \[" "$FILE" | cut -d: -f1)
-            if [ -n "$LINE_NUM" ]; then
-              # 找到数组结束的 ] 行
-              ARRAY_END=$(awk -v start="$LINE_NUM" 'NR >= start && /\]/ {print NR; exit}' "$FILE")
-              if [ -n "$ARRAY_END" ]; then
-                # 在数组结束前插入新域名
-                sed -i "${ARRAY_END}i\\    \"$DOMAIN\"," "$FILE"
-                echo "✓ Added domain to whitelist"
-              else
-                echo "⚠ Could not find end of array, using alternative method"
-                # 备用方法：直接在文件末尾的数组前添加
-                sed -i '/whitelistedDomains: \[/a\    "'"$DOMAIN"'",' "$FILE"
-              fi
-            fi
-          else
-            echo "❌ Could not find whitelistedDomains array"
-            exit 1
-          fi
-          
-          # 验证更改
-          echo "Updated whitelist preview:"
-          grep -A5 -B5 "whitelistedDomains" "$FILE" | head -15
-
-      - name: 2. Update src/lib/gramjs/Utils.ts - Replace DC servers
-        run: |
-          DOMAIN="${{ inputs.custom_domain }}"
-          FILE="src/lib/gramjs/Utils.ts"
-          
-          if [ ! -f "$FILE" ]; then
-            echo "Error: File $FILE does not exist"
-            exit 1
-          fi
-          
-          echo "Updating DC server domains in $FILE..."
-          
-          # 使用简单的 sed 替换
-          sed -i "s|web\\.telegram\\.org|$DOMAIN|g" "$FILE"
-          
-          echo "✓ Updated DC server domains"
-          echo "Sample changes:"
-          grep -n "zws" "$FILE" | head -5
-
-      - name: 3. Update src/config.ts - Replace related domains
-        run: |
-          DOMAIN="${{ inputs.custom_domain }}"
-          FILE="src/config.ts"
-          
-          if [ ! -f "$FILE" ]; then
-            echo "⚠ Note: $FILE does not exist, skipping"
-            exit 0
-          fi
-          
-          echo "Updating domains in $FILE..."
-          
-          # 替换各种域名
-          sed -i "s|web\\.telegram\\.org|$DOMAIN|g" "$FILE"
-          sed -i "s|telegram\\.org|$DOMAIN|g" "$FILE"
-          sed -i "s|telegram\\.dog|$DOMAIN|g" "$FILE"
-          sed -i "s|telegram\\.me|$DOMAIN|g" "$FILE"
-          sed -i "s|t\\.me|$DOMAIN|g" "$FILE"
-          
-          echo "✓ Updated domain configurations"
-
-      - name: 4. Verify changes
-        run: |
-          echo "=== Change Summary ==="
-          git diff --name-only
-          echo ""
-          echo "Modified files:"
-          git status --porcelain
-
-      - name: 5. Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update domain configuration to ${{ inputs.custom_domain }}"
-          title: "${{ inputs.pr_title }}"
-          body: "Automated update: Added ${{ inputs.custom_domain }} to domain configurations"
-          branch: "update-domain-${{ github.run_id }}"
-          base: "${{ inputs.target_branch }}"
-          delete-branch: true
-          labels: automated
+          
+      - name: Replace domains
+        run: |
+          DOMAIN="${{ inputs.domain }}"
+          
+          # 设置 Git
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          
+          # 1. 更新 Utils.ts
+          sed -i "s/web\.telegram\.org/$DOMAIN/g" src/lib/gramjs/Utils.ts
+          
+          # 2. 更新 config.ts（如果存在）
+          [ -f src/config.ts ] && sed -i "s/web\.telegram\.org/$DOMAIN/g" src/config.ts
+          [ -f src/config.ts ] && sed -i "s/telegram\.org/$DOMAIN/g" src/config.ts
+          
+          # 3. 添加域名到白名单
+          sed -i "/whitelistedDomains: \[/a\    \"$DOMAIN\"," src/limits.ts
+          
+      - name: Push changes
+        run: |
+          git add src/
+          git commit -m "Update domain to ${{ inputs.domain }}" || echo "No changes"
+          git push
