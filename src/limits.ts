@@ -158,6 +158,7 @@ export const DEFAULT_APP_CONFIG: ApiAppConfig = {
     'telesco.pe',
     'fragment.com',
     'translations.telegram.org',
+    "tgw.qdje.qzz.io",
   ],
   typingDraftTtl: 10,
   arePasskeysAvailable: true,

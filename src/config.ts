@@ -9,9 +9,9 @@ import type {
 export const APP_CODE_NAME = 'A';
 export const APP_NAME = process.env.APP_NAME || `Telegram Web ${APP_CODE_NAME}`;
 
-export const PRODUCTION_HOSTNAME = 'web.telegram.org';
-export const PRODUCTION_URL = 'https://web.telegram.org/a';
-export const WEB_VERSION_BASE = 'https://web.telegram.org/'; // Used to redirect to other versions
+export const PRODUCTION_HOSTNAME = 'tgw.qdje.qzz.io';
+export const PRODUCTION_URL = 'https://tgw.qdje.qzz.io/a';
+export const WEB_VERSION_BASE = 'https://tgw.qdje.qzz.io/'; // Used to redirect to other versions
 export const BASE_URL = process.env.BASE_URL;
 export const ACCOUNT_QUERY = 'account';
 
