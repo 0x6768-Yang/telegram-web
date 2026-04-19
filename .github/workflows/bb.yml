@@ -43,16 +43,20 @@ jobs:
       - name: Build
         run: npm run build:production
         
+      - name: Create ZIP package
+        run: |
+          cd dist
+          zip -r "../telegram-web-$(date +'%Y%m%d-%H%M%S').zip" ./*
+          cd ..
+        
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v1.0.0
           name: Release v1.0.0
-          body: |
-            Release notes here
+          body: Telegram Web 部署包
           draft: false
           prerelease: false
           files: |
-            dist/*
-            !*.map
-          generate_release_notes: true  
+            *.zip
+          generate_release_notes: false
